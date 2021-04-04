@@ -26,8 +26,8 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#ifndef SK_RADIX_HXX_INCLUDED
-#define SK_RADIX_HXX_INCLUDED
+#ifndef SK_PATRICIA_HXX_INCLUDED
+#define SK_PATRICIA_HXX_INCLUDED
 
 //#define SK_PATRICIA_TRACE
 
@@ -37,7 +37,6 @@
 #include <climits>
 #include <cstddef>
 #include <cstring>
-#include <fmt/core.h>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -86,12 +85,14 @@ namespace sk {
         patricia_key(std::span<std::byte const> key_, bit_t bits_ = 0) noexcept
             : key(key_), bits(bits_ ? bits_ : (key.size() * CHAR_BIT))
         {
-            std::size_t need_bytes = 1 + ((bits - 1) / CHAR_BIT);
+            if (bits > 0) {
+                std::size_t need_bytes = 1 + ((bits - 1) / CHAR_BIT);
 
-            if (key.size() > need_bytes)
-                key = key.subspan(0, 1 + ((bits - 1) / CHAR_BIT));
+                if (key.size() > need_bytes)
+                    key = key.subspan(0, need_bytes);
 
-            SK_PATRICIA_INVARIANT(key.size() >= need_bytes);
+                SK_PATRICIA_INVARIANT(key.size() >= need_bytes);
+            }
         }
 
         // NOLINTNEXTLINE non-explicit iterator
@@ -415,29 +416,11 @@ namespace sk {
         using const_node_pointer = node_type const *;
 
         node_pointer current = nullptr;
-        int next = 0;
 
         auto _advance() -> void
         {
-#ifdef SK_PATRICIA_TRACE
-            auto name_edge = [](auto e) -> std::string {
-                switch (e) {
-                case node_type::left:
-                    return "left";
-                case node_type::right:
-                    return "right";
-                case node_type::up:
-                    return "up";
-                default:
-                    return "?";
-                }
-            };
-#endif
-
             do {
-                SK_PATRICIA_TRACE_MSG("iterator: at {}, next={}\n",
-                                      (void *)current,
-                                      name_edge(next));
+                SK_PATRICIA_TRACE_MSG("iterator: at {}\n", (void *)current);
 
                 if (current->leftedge()) {
                     current = current->leftedge();
@@ -448,7 +431,6 @@ namespace sk {
                     current = current->rightedge();
                     continue;
                 }
-                // fallthrough
 
                 // If we can't go either left or right, back up until we
                 // find a node where we went left last time and can go
@@ -464,7 +446,6 @@ namespace sk {
 
                     if (here_is_left && parent_has_right) {
                         current = current->parent->rightedge();
-                        next = node_type::left;
                         break;
                     }
 
@@ -524,15 +505,6 @@ namespace sk {
             SK_PATRICIA_INVARIANT(current != nullptr &&
                                   current->value.has_value());
             return std::addressof(*current->value);
-        }
-
-        auto operator=(patricia_iterator const &other) -> patricia_iterator &
-        {
-            if (&other != this) {
-                current = other.current;
-                next = other.next;
-            }
-            return *this;
         }
 
         auto operator++() -> patricia_iterator &
@@ -655,7 +627,7 @@ namespace sk {
 #ifdef SK_PATRICIA_INVARIANT
 
         template <typename... Args>
-        void bugcheck(Args &&...args) const;
+        void bugcheck(std::string const &, Args &&...args) const;
 
 #endif
 
@@ -833,20 +805,29 @@ namespace sk {
     /*************************************************************************
      * patricia_trie<T>::bugcheck
      */
+#    ifdef SK_PATRICIA_HAVE_FMT
     template <typename T, typename Allocator>
     template <typename... Args>
-    void patricia_trie<T, Allocator>::bugcheck(Args &&...args) const
+    void patricia_trie<T, Allocator>::bugcheck(std::string const &format,
+                                               Args &&...args) const
     {
-#    ifdef SK_PATRICIA_HAVE_FMT
-        std::string msg = fmt::format(std::forward<Args>(args)...);
+        std::string msg = fmt::format(format, std::forward<Args>(args)...);
         fmt::print("[BUGCHECK] {}\n\n", msg);
 #        ifdef SK_PATRICIA_TRACE
         fmt::print("Trie state:\n\n{}\n", print(root));
 #        endif
-#    endif
-
         SK_PATRICIA_INVARIANT(!"invariant failed");
     }
+#    else
+    template <typename T, typename Allocator>
+    template <typename... Args>
+    void patricia_trie<T, Allocator>::bugcheck(std::string const &format,
+                                               Args &&...) const
+    {
+        std::ignore = format;
+        SK_PATRICIA_INVARIANT(!format.c_str());
+    }
+#    endif
 
 #endif
 
@@ -1574,14 +1555,6 @@ namespace sk {
             return std::addressof(*current);
         }
 
-        auto operator=(patricia_map_iterator const &other)
-            -> patricia_map_iterator &
-        {
-            if (&other != this)
-                current = other.current;
-            return *this;
-        }
-
         auto operator++() -> patricia_map_iterator &
         {
             ++current;
@@ -1826,4 +1799,4 @@ namespace sk {
 
 } // namespace sk
 
-#endif // SK_RADIX_HXX_INCLUDED
+#endif // SK_PATRICIA_HXX_INCLUDED

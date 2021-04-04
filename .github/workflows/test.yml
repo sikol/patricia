@@ -1,0 +1,142 @@
+name: CMake
+
+on: [ push ]
+
+env:
+  BUILD_TYPE: Release
+  VCVARS_PATH: "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise\\VC\\Auxiliary\\Build\\vcvars64.bat"
+
+jobs:
+  x64_windows_msvc:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: cmd
+        working-directory: ${{github.workspace}}/build
+        run: |
+          call "%VCVARS_PATH%"
+          cmake -G Ninja                         ^
+              -DCMAKE_BUILD_TYPE=%BUILD_TYPE%    ^
+              ..
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: cmd
+        run: |
+          call "%VCVARS_PATH%"
+          cmake --build .
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: cmd
+        run: ctest -V
+
+  x64_windows_clang:
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Create Build Environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: cmd
+        working-directory: ${{github.workspace}}/build
+        run: |
+          call "%VCVARS_PATH%"
+          cmake -G Ninja                        ^
+              -DCMAKE_BUILD_TYPE=%BUILD_TYPE%   ^
+              -DCMAKE_C_COMPILER=clang-cl       ^
+              -DCMAKE_CXX_COMPILER=clang-cl     ^
+              ..
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: cmd
+        run: |
+          call "%VCVARS_PATH%"
+          cmake --build .
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: cmd
+        run: ctest -V
+
+  x64_linux_gcc:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Create build environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: sh
+        working-directory: ${{github.workspace}}/build
+        run: |
+          cmake                                                  \
+              -DCMAKE_C_COMPILER=gcc-10                          \
+              -DCMAKE_C_FLAGS="-m64 -g3 -O2"                     \
+              -DCMAKE_CXX_COMPILER=g++-10                        \
+              -DCMAKE_CXX_FLAGS="-m64 -g3 -O2 -std=c++20"        \
+              -DCMAKE_BUILD_TYPE=$BUILD_TYPE                     \
+              ..
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: sh
+        run: |
+          cmake --build .
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: sh
+        run: ctest -V
+
+  x64_linux_clang:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: recursive
+
+      - name: Create build environment
+        run: cmake -E make_directory ${{github.workspace}}/build
+
+      - name: Configure CMake
+        shell: sh
+        working-directory: ${{github.workspace}}/build
+        run: |
+          cmake                                               \
+              -DCMAKE_C_COMPILER=clang-11                     \
+              -DCMAKE_C_FLAGS="-m64 -O2 -g3"                  \
+              -DCMAKE_CXX_COMPILER=clang++-11                 \
+              -DCMAKE_CXX_FLAGS="-m64 -O2 -g3 -std=c++20"     \
+              -DCMAKE_BUILD_TYPE=$BUILD_TYPE                  \
+              ..
+
+      - name: Build
+        working-directory: ${{github.workspace}}/build
+        shell: sh
+        run: |
+          cmake --build .
+
+      - name: Test
+        working-directory: ${{github.workspace}}/build
+        shell: sh
+        run: ctest -V

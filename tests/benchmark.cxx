@@ -36,17 +36,18 @@ auto gen_test_vector() -> std::set<std::string>
 {
     std::set<std::string> ret;
 
+    // NOLINTNEXTLINE - random engine with fixed seed
     std::default_random_engine engine(123456u);
 
-    std::uniform_int_distribution<unsigned int> rand_itemlen(20, 500);
-    std::uniform_int_distribution<int> rand_char(32, 126);
+    std::uniform_int_distribution<unsigned int> rand_itemlen(10, 50);
+    std::uniform_int_distribution<int> rand_char(0, 255);
 
     unsigned nitems = 50000;
 
     for (unsigned i = 0; i < nitems; ++i) {
         unsigned len = rand_itemlen(engine);
 
-        std::string item('X', len);
+        std::string item(len, 'X');
         std::ranges::generate(
             item, [&]() -> char { return char(rand_char(engine)); });
 
