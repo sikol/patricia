@@ -28,6 +28,8 @@ cmake_minimum_required(VERSION 3.12)
 
 project(patricia)
 
+enable_testing()
+
 add_library(sk-patricia INTERFACE)
 target_include_directories(sk-patricia INTERFACE include)
 target_compile_features(sk-patricia INTERFACE cxx_std_20)
