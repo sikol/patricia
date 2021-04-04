@@ -1,0 +1,24 @@
+---
+BasedOnStyle: LLVM
+IndentWidth: '4'
+AccessModifierOffset: -4
+NamespaceIndentation: All
+AllowShortFunctionsOnASingleLine: Empty
+IndentPPDirectives: AfterHash
+AlwaysBreakTemplateDeclarations: Yes
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterFunction: true
+BinPackParameters: false
+BinPackArguments: false
+FixNamespaceComments: true
+IncludeCategories:
+  - Regex:      '^<sys/types.h>$'
+    Priority:   1
+  - Regex:      '^<sys/'
+    Priority:   2
+  - Regex:      '^<sk/'
+    Priority:   4
+  - Regex:      '.*'
+    Priority:   3
+---
