@@ -133,11 +133,11 @@ TEST_CASE("patricia bit masks")
         REQUIRE(trie.insert(k1, 42));
 
         auto r = trie.find(k1);
-        REQUIRE(r);
+        REQUIRE(r != trie.end());
         REQUIRE(*r == 42);
 
         r = trie.find(k2);
-        REQUIRE(r);
+        REQUIRE(r != trie.end());
         REQUIRE(*r == 42);
     }
 
@@ -149,11 +149,11 @@ TEST_CASE("patricia bit masks")
         REQUIRE(trie.insert(k1, 42));
 
         auto r = trie.find(k1);
-        REQUIRE(r);
+        REQUIRE(r != trie.end());
         REQUIRE(*r == 42);
 
         r = trie.find(k2);
-        REQUIRE(!r);
+        REQUIRE(r == trie.end());
     }
 
     {
@@ -164,11 +164,11 @@ TEST_CASE("patricia bit masks")
         REQUIRE(trie.insert(k1, 42));
 
         auto r = trie.find(k1);
-        REQUIRE(r);
+        REQUIRE(r != trie.end());
         REQUIRE(*r == 42);
 
         r = trie.find(k2);
-        REQUIRE(!r);
+        REQUIRE(r == trie.end());
     }
 }
 
@@ -188,18 +188,18 @@ TEST_CASE("patricia byte inserts")
     REQUIRE(b);
 
     auto r = trie.find(std::span(&b1, 1));
-    REQUIRE(r);
+    REQUIRE(r != trie.end());
     REQUIRE(*r == 42);
 
     r = trie.find(std::span(&b2, 1));
-    REQUIRE(r);
+    REQUIRE(r != trie.end());
     REQUIRE(*r == 666);
 
     r = trie.find(std::span(&b3, 1));
-    REQUIRE(!r);
+    REQUIRE(r == trie.end());
 
     r = trie.find(std::span(&b4, 1));
-    REQUIRE(!r);
+    REQUIRE(r == trie.end());
 
     b = trie.remove(std::span(&b2, 1));
     REQUIRE(b);
@@ -240,7 +240,7 @@ TEST_CASE("patricia_trie basic inserts")
 
             for (auto &&s_ : test_strings) {
                 auto r = trie.find(s_);
-                REQUIRE(r);
+                REQUIRE(r != trie.end());
                 REQUIRE(*r == s_);
                 if (s_ == s)
                     break;
@@ -254,9 +254,9 @@ TEST_CASE("patricia_trie basic inserts")
             for (std::size_t j = 0; j < test_strings.size(); ++j) {
                 auto r = trie.find(test_strings[j]);
                 if (j <= i) {
-                    REQUIRE(!r);
+                    REQUIRE(r == trie.end());
                 } else {
-                    REQUIRE(r);
+                    REQUIRE(r != trie.end());
                     REQUIRE(*r == test_strings[j]);
                 }
             }
@@ -594,29 +594,96 @@ TEST_CASE("patricia_map random test")
     }
 }
 
-TEST_CASE("patricia_set const functions")
+TEST_CASE("patricia_trie iterator")
+{
+    patricia_trie<int> trie;
+
+    trie.insert("aaa", 42);
+    trie.insert("bbb", 666);
+
+    auto it = trie.begin();
+    REQUIRE(it != trie.end());
+    REQUIRE(*it++ == 42);
+    REQUIRE(*it++ == 666);
+    REQUIRE(it == trie.end());
+
+    patricia_trie<int> const &ctrie(trie);
+    auto cit = ctrie.begin();
+    REQUIRE(cit != ctrie.end());
+    REQUIRE(*cit++ == 42);
+    REQUIRE(*cit++ == 666);
+    REQUIRE(cit == ctrie.end());
+
+    cit = ctrie.cbegin();
+    REQUIRE(cit != ctrie.cend());
+    REQUIRE(*cit++ == 42);
+    REQUIRE(*cit++ == 666);
+    REQUIRE(cit == ctrie.cend());
+
+    REQUIRE(!ctrie.empty());
+    REQUIRE(ctrie.find("aaa") != ctrie.end());
+}
+
+TEST_CASE("patricia_set iterator")
 {
     patricia_set<int> set;
 
     set.insert(42);
     set.insert(666);
 
-    patricia_set<int> const &cset(set);
-    auto it = cset.begin();
-    REQUIRE(it != cset.end());
+    auto it = set.begin();
+    REQUIRE(it != set.end());
     REQUIRE(*it++ == 42);
     REQUIRE(*it++ == 666);
-    REQUIRE(it == cset.end());
+    REQUIRE(it == set.end());
 
-    it = cset.cbegin();
-    REQUIRE(it != cset.cend());
-    REQUIRE(*it++ == 42);
-    REQUIRE(*it++ == 666);
-    REQUIRE(it == cset.cend());
+    patricia_set<int> const &cset(set);
+    auto cit = cset.begin();
+    REQUIRE(cit != cset.end());
+    REQUIRE(*cit++ == 42);
+    REQUIRE(*cit++ == 666);
+    REQUIRE(cit == cset.end());
+
+    cit = cset.cbegin();
+    REQUIRE(cit != cset.cend());
+    REQUIRE(*cit++ == 42);
+    REQUIRE(*cit++ == 666);
+    REQUIRE(cit == cset.cend());
 
     REQUIRE(!cset.empty());
     REQUIRE(cset.find(42) != cset.end());
 }
+
+TEST_CASE("patricia_map iterator")
+{
+    patricia_set<int> map;
+
+    map.insert(42);
+    map.insert(666);
+
+    auto it = map.begin();
+    REQUIRE(it != map.end());
+    REQUIRE(*it++ == 42);
+    REQUIRE(*it++ == 666);
+    REQUIRE(it == map.end());
+
+    patricia_set<int> const &cmap(map);
+    auto cit = cmap.begin();
+    REQUIRE(cit != cmap.end());
+    REQUIRE(*cit++ == 42);
+    REQUIRE(*cit++ == 666);
+    REQUIRE(cit == cmap.end());
+
+    cit = cmap.cbegin();
+    REQUIRE(cit != cmap.cend());
+    REQUIRE(*cit++ == 42);
+    REQUIRE(*cit++ == 666);
+    REQUIRE(cit == cmap.cend());
+
+    REQUIRE(!cmap.empty());
+    REQUIRE(cmap.find(42) != cmap.end());
+}
+
 
 TEST_CASE("patricia_set range for") {
     patricia_set<int> set;
