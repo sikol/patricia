@@ -761,7 +761,7 @@ namespace sk {
      */
     template <typename T, typename Alloc>
     patricia_trie<T, Alloc>::~patricia_trie() noexcept(
-        std::is_nothrow_destructible_v<patricia_node<T, Alloc>>)
+        std::is_nothrow_destructible_v<node_type>)
     {
         delete root;
     }
@@ -824,7 +824,7 @@ namespace sk {
      */
     template <typename T, typename Alloc>
     auto patricia_trie<T, Alloc>::clear() noexcept(
-        std::is_nothrow_destructible_v<patricia_node<T, Alloc>>) -> void
+        std::is_nothrow_destructible_v<node_type>) -> void
     {
         delete std::exchange(root, nullptr);
     }
@@ -918,7 +918,7 @@ namespace sk {
      */
     template <typename T, typename Alloc>
     auto patricia_trie<T, Alloc>::remove(patricia_key const &key) noexcept(
-        std::is_nothrow_destructible_v<patricia_node<T, Alloc>>) -> bool
+        std::is_nothrow_destructible_v<node_type>) -> bool
     {
         auto it = find(key);
         if (it == end())
@@ -1088,7 +1088,7 @@ namespace sk {
      */
     template <typename T, typename Alloc>
     auto patricia_trie<T, Alloc>::remove_node(node_pointer node) noexcept(
-        std::is_nothrow_destructible_v<patricia_node<T, Alloc>>) -> void
+        std::is_nothrow_destructible_v<node_type>) -> void
     {
         // Removing this node may cause the parent to be deleted as well, so
         // loop until we find a node we can't delete.
