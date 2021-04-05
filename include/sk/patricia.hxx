@@ -81,7 +81,7 @@ namespace sk {
 
         patricia_key() noexcept = default;
 
-        // NOLINTNEXTLINE non-explicit iterator
+        // NOLINTNEXTLINE non-explicit constructor
         patricia_key(std::span<std::byte const> key_, bit_t bits_ = 0) noexcept
             : key(key_), bits(bits_ ? bits_ : (key.size() * CHAR_BIT))
         {
@@ -95,7 +95,7 @@ namespace sk {
             }
         }
 
-        // NOLINTNEXTLINE non-explicit iterator
+        // NOLINTNEXTLINE non-explicit constructor
         patricia_key(char const *string, bit_t bits_ = 0) noexcept
             : patricia_key(as_bytes(std::span(string, std::strlen(string))),
                            bits_)
@@ -104,7 +104,7 @@ namespace sk {
 
         patricia_key(patricia_key const &other) noexcept = default;
 
-        // NOLINTNEXTLINE non-explicit iterator
+        // NOLINTNEXTLINE non-explicit constructor
         template <std::ranges::contiguous_range Range>
         patricia_key(Range &&r, bit_t bits_ = 0) noexcept
             : patricia_key(
@@ -225,6 +225,45 @@ namespace sk {
         return ((a.key[i] ^ b.key[i]) & mask) == std::byte{0};
     }
 
+    /*
+     * Compare the first a.size_bits() bits of 'a' to 'b'.
+     */
+    inline auto prefix_compare(patricia_key const &a,
+                               patricia_key const &b) noexcept -> bool
+    {
+        auto size_bytes = a.size_bytes();
+        auto bits = a.size_bits();
+
+        if (bits > b.size_bits())
+            return false;
+
+        if (size_bytes == 0)
+            return true;
+
+        if ((bits % CHAR_BIT) == 0)
+            return std::memcmp(a.key.data(), b.key.data(), size_bytes) == 0;
+
+        SK_PATRICIA_INVARIANT(a.size_bytes() <= b.size_bytes());
+
+        std::size_t i = 0;
+        for (; i < (size_bytes - 1); ++i) {
+            SK_PATRICIA_INVARIANT(i < a.key.size());
+            SK_PATRICIA_INVARIANT(i < b.key.size());
+
+            if (a.key[i] != b.key[i])
+                return false;
+        }
+
+        SK_PATRICIA_INVARIANT(i == (size_bytes - 1));
+
+        std::byte mask = std::byte{0xFF} << (CHAR_BIT - (bits % CHAR_BIT));
+
+        SK_PATRICIA_TRACE_MSG(
+            "bits={}, mask={:08b}, mod={}\n", bits, mask, bits % CHAR_BIT);
+
+        return ((a.key[i] ^ b.key[i]) & mask) == std::byte{0};
+    }
+
     /*************************************************************************
      *
      * patricia_node<T>: one node in the trie that stores an object of type T.
@@ -307,6 +346,20 @@ namespace sk {
                                   (void *)r,
                                   (void *)(r ? r->parent : nullptr));
             return node;
+        }
+
+        auto copy() const -> patricia_node * {
+            auto new_node = make_node(key, bit);
+            new_node->value = value;
+            new_node->parent = parent;
+
+            if (edges[left])
+                new_node->edges[left] = edges[left]->copy();
+
+            if (edges[right])
+                new_node->edges[right] = edges[right]->copy();
+
+            return new_node;
         }
 
         patricia_node() = default;
@@ -581,16 +634,25 @@ namespace sk {
         using const_iterator = patricia_iterator<T, Allocator, true>;
 
     private:
-        node_pointer root = node_type::make_node();
+        node_pointer root = nullptr;
 
     public:
+        patricia_trie() = default;
+        patricia_trie(patricia_trie &&);
+        patricia_trie(patricia_trie const &);
         ~patricia_trie();
+
+        auto operator=(patricia_trie &&) -> patricia_trie &;
+        auto operator=(patricia_trie const &) -> patricia_trie &;
 
         // Node operations.
         [[nodiscard]] auto find_node(patricia_key const &key) const noexcept
             -> const_node_pointer;
 
         [[nodiscard]] auto find_node(patricia_key const &key) noexcept
+            -> node_pointer;
+
+        [[nodiscard]] auto prefix_match(patricia_key const &key) noexcept
             -> node_pointer;
 
         auto insert_node(patricia_key const &key) -> node_pointer;
@@ -644,6 +706,48 @@ namespace sk {
             -> void;
 #endif // SK_PATRICIA_TRACE
     };
+
+    /*************************************************************************
+     * patrcia_trie<T> copy constructor
+     */
+    template <typename T, typename Allocator>
+    patricia_trie<T, Allocator>::patricia_trie(patricia_trie const &other)
+    : root(other.root->copy())
+    {
+    }
+
+    /*************************************************************************
+     * patrcia_trie<T> move constructor
+     */
+    template <typename T, typename Allocator>
+    patricia_trie<T, Allocator>::patricia_trie(patricia_trie &&other)
+        : root(std::exchange(other.root, nullptr))
+    {
+    }
+
+    /*************************************************************************
+     * patrcia_trie<T> copy assignment
+     */
+    template <typename T, typename Allocator>
+    auto patricia_trie<T, Allocator>::operator=(patricia_trie const &other)
+        -> patricia_trie &
+    {
+        if (&other != this)
+            root = other.root->copy();
+        return *this;
+    }
+
+    /*************************************************************************
+     * patrcia_trie<T> move assignment
+     */
+    template <typename T, typename Allocator>
+    auto patricia_trie<T, Allocator>::operator=(patricia_trie &&other)
+    -> patricia_trie &
+    {
+        if (&other != this)
+            root = std::exchange(other.root, nullptr);
+        return *this;
+    }
 
     /*************************************************************************
      * patricia_trie<T>::~patricia_trie
@@ -712,8 +816,7 @@ namespace sk {
     template <typename T, typename Allocator>
     auto patricia_trie<T, Allocator>::clear() -> void
     {
-        delete root;
-        root = node_type::make_node();
+        delete std::exchange(root, nullptr);
     }
 
     /*************************************************************************
@@ -722,7 +825,7 @@ namespace sk {
     template <typename T, typename Allocator>
     auto patricia_trie<T, Allocator>::empty() const -> bool
     {
-        return !root->value && !root->edges[0] && !root->edges[1];
+        return !root || (!root->value && !root->edges[0] && !root->edges[1]);
     }
 
     /*************************************************************************
@@ -850,10 +953,8 @@ namespace sk {
         std::string ret;
 
         if (printable) {
-            auto chars = key | std::views::transform(
-                                   [](auto b) { return static_cast<char>(b); });
-            ret =
-                std::string(std::ranges::begin(chars), std::ranges::end(chars));
+            for (auto &&b : key)
+                ret += static_cast<char>(b);
         } else {
             for (auto &&b : key)
                 ret += fmt::format("{:02x}", b);
@@ -1068,6 +1169,9 @@ namespace sk {
         SK_PATRICIA_TRACE_MSG("find_node: start search, root={}\n",
                               (void *)root);
 
+        if (!root)
+            return nullptr;
+
         auto node = root;
         auto keybits = key.size_bits();
 
@@ -1088,6 +1192,67 @@ namespace sk {
     }
 
     /*************************************************************************
+     * patricia_trie<T>::upper_bound
+     */
+    template <typename T, typename Allocator>
+    auto
+    patricia_trie<T, Allocator>::prefix_match(patricia_key const &key) noexcept
+        -> node_pointer
+    {
+        SK_PATRICIA_TRACE_MSG("prefix_match: start search key<{}>, root={}\n",
+                              format_key(key),
+                              (void *)root);
+        if (!root)
+            return nullptr;
+
+        SK_PATRICIA_TRACE_MSG("{}\n", print(root));
+
+        auto node = root;
+        auto keybits = key.size_bits();
+
+        while (node->bit < keybits) {
+            SK_PATRICIA_TRACE_MSG(
+                "prefix_match: at {}, node->bit={}\n", (void *)node, node->bit);
+
+            auto &next = node->edges[key.test_bit(node->bit)];
+
+            SK_PATRICIA_TRACE_MSG("prefix_match: <{}> <{}>\n",
+                                  format_key(key),
+                                  format_key(node->key));
+
+            if (!next)
+                break;
+
+            node = next;
+        }
+
+        SK_PATRICIA_TRACE_MSG("prefix_match: search [{}] found node<{}> [{}]\n",
+                              format_key(key),
+                              (void *)node,
+                              format_key(node->key));
+
+        // Walk up the tree until we find a match.
+        while (node != nullptr &&
+               (node->key.bits > keybits || !prefix_compare(node->key, key))) {
+            SK_PATRICIA_TRACE_MSG("prefix_match: no match at node<{}>\n    "
+                                  "node={},\n     key={}\n",
+                                  (void *)node,
+                                  format_key(node->key),
+                                  format_key(key));
+            node = node->parent;
+        }
+
+        if (node)
+            SK_PATRICIA_TRACE_MSG(
+                "prefix_match: match at node<{}>\n    node={},\n     key={}\n",
+                (void *)node,
+                format_key(node->key),
+                format_key(key));
+
+        return node;
+    }
+
+    /*************************************************************************
      * patricia_trie<T>::_get_node
      */
     template <typename T, typename Allocator>
@@ -1095,6 +1260,10 @@ namespace sk {
         -> node_pointer
     {
         auto keylen = key.size_bits();
+
+        if (!root)
+            root = node_type::make_node();
+
         auto node = root;
 
         // Find the node in the trie.
@@ -1337,6 +1506,13 @@ namespace sk {
             return _trie.insert_node(key);
         }
 
+        auto _insert_node(value_type const &value) -> node_ptr
+        {
+            KeyMaker key_maker;
+            auto key = key_maker(value);
+            return _insert_node(key);
+        }
+
         template <typename V>
         auto _insert_node(V const &value) -> node_ptr
         {
@@ -1448,6 +1624,41 @@ namespace sk {
                 return const_iterator(node);
 
             return const_iterator();
+        }
+
+        auto prefix_match(value_type const &value) -> iterator
+        {
+            KeyMaker key_maker;
+            auto key = key_maker(value);
+            auto r = _trie.prefix_match(key);
+            if (r)
+                return iterator(r);
+            else
+                return end();
+        }
+
+        template <typename V>
+        auto prefix_match(V const &value) -> iterator
+        {
+            typename KeyMaker::template rebind<V>::other key_maker;
+            auto key = key_maker(value);
+            auto r = _trie.prefix_match(key);
+            if (r)
+                return iterator(r);
+            else
+                return end();
+        }
+
+        template <typename V>
+        auto prefix_match(V const &value) const -> const_iterator
+        {
+            typename KeyMaker::template rebind<V>::other key_maker;
+            auto key = key_maker(value);
+            auto r = _trie.prefix_match(key);
+            if (r)
+                return const_iterator(r);
+            else
+                return end();
         }
 
         template <typename V>
@@ -1610,6 +1821,13 @@ namespace sk {
         auto _insert_node(patricia_key const &key) -> node_ptr
         {
             return _trie.insert_node(key);
+        }
+
+        auto _insert_node(key_type const &value) -> node_ptr
+        {
+            KeyMaker key_maker;
+            auto key = key_maker(value);
+            return _insert_node(key);
         }
 
         template <typename V>

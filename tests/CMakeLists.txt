@@ -26,8 +26,11 @@
 
 cmake_minimum_required(VERSION 3.12)
 
-add_executable(test_patricia test_patricia.cxx benchmark.cxx)
+add_executable(test_patricia test_patricia.cxx benchmark.cxx ip_prefix.cxx)
 target_compile_definitions(test_patricia PRIVATE CATCH_CONFIG_ENABLE_BENCHMARKING)
 target_link_libraries(test_patricia PRIVATE sk-patricia catch fmt)
+if (WIN32)
+    target_link_libraries(test_patricia PRIVATE ws2_32)
+endif ()
 
 add_test(NAME test_patricia COMMAND $<TARGET_FILE:test_patricia>)

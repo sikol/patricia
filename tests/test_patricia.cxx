@@ -686,3 +686,77 @@ TEST_CASE("patricia_trie typedefs")
         std::same_as<sk::patricia_iterator<int, std::allocator<int>, true>,
         patricia_trie<int>::const_iterator>);
 }
+
+TEST_CASE("patricia_set<> copy") {
+    patricia_set<int> set;
+
+    set.insert(1);
+    set.insert(42);
+    set.insert(666);
+
+    patricia_set<int> cset(set);
+
+    REQUIRE(*set.find(1) == 1);
+    REQUIRE(*set.find(42) == 42);
+    REQUIRE(*set.find(666) == 666);
+
+    REQUIRE(*cset.find(1) == 1);
+    REQUIRE(*cset.find(42) == 42);
+    REQUIRE(*cset.find(666) == 666);
+}
+
+TEST_CASE("patricia_set<> move") {
+    patricia_set<int> set;
+
+    set.insert(1);
+    set.insert(42);
+    set.insert(666);
+
+    patricia_set<int> cset(std::move(set));
+
+    REQUIRE(set.find(1) == set.end());
+    REQUIRE(set.find(42) == set.end());
+    REQUIRE(set.find(666) == set.end());
+
+    REQUIRE(*cset.find(1) == 1);
+    REQUIRE(*cset.find(42) == 42);
+    REQUIRE(*cset.find(666) == 666);
+}
+
+TEST_CASE("patricia_set<> copy assign") {
+    patricia_set<int> set;
+
+    set.insert(1);
+    set.insert(42);
+    set.insert(666);
+
+    patricia_set<int> cset;
+    cset = set;
+
+    REQUIRE(*set.find(1) == 1);
+    REQUIRE(*set.find(42) == 42);
+    REQUIRE(*set.find(666) == 666);
+
+    REQUIRE(*cset.find(1) == 1);
+    REQUIRE(*cset.find(42) == 42);
+    REQUIRE(*cset.find(666) == 666);
+}
+
+TEST_CASE("patricia_set<> move assign") {
+    patricia_set<int> set;
+
+    set.insert(1);
+    set.insert(42);
+    set.insert(666);
+
+    patricia_set<int> cset;
+    cset = std::move(set);
+
+    REQUIRE(set.find(1) == set.end());
+    REQUIRE(set.find(42) == set.end());
+    REQUIRE(set.find(666) == set.end());
+
+    REQUIRE(*cset.find(1) == 1);
+    REQUIRE(*cset.find(42) == 42);
+    REQUIRE(*cset.find(666) == 666);
+}
