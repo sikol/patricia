@@ -77,10 +77,10 @@ std::vector<std::byte> byte_vec;
 patricia_key key1(byte_vec);
 
 std::string s;
-patricia_key key3(s);
+patricia_key key2(s);
 
 std::byte short_key = {0b11010000}; 
-patricia_key key2(std::span(&short_key, 1), 4); // key is '1101'
+patricia_key key3(std::span(&short_key, 1), 4); // key is '1101'
 ```
 
 ### Key makers
@@ -108,6 +108,9 @@ struct ip_prefix_keymaker {
 
 patricia_map<ip_prefix, std::string, ip_prefix_keymaker> ip_map;
 ```
+
+A default key maker is provided for C strings and `std::ranges::contiguous_range`s,
+as well as for signed and unsigned integer type.
 
 ### Key byte order
 
