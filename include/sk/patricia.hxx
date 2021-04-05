@@ -949,7 +949,7 @@ namespace sk {
     template <typename T, typename Allocator>
     template <typename... Args>
     void patricia_trie<T, Allocator>::bugcheck(std::string const &format,
-                                               Args &&...) const
+                                               Args &&...) const noexcept
     {
         std::ignore = format;
         SK_PATRICIA_INVARIANT(!format.c_str());
