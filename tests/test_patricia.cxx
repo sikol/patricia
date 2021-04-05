@@ -739,6 +739,8 @@ TEST_CASE("patricia_set typedefs")
 TEST_CASE("patricia_trie typedefs")
 {
     REQUIRE(std::same_as<int, patricia_trie<int>::value_type>);
+    REQUIRE(std::same_as<int *, patricia_trie<int>::value_pointer>);
+    REQUIRE(std::same_as<int const *, patricia_trie<int>::const_value_pointer>);
     REQUIRE(std::same_as<patricia_key, patricia_trie<int>::key_type>);
     REQUIRE(std::same_as<std::size_t, patricia_trie<int>::size_type>);
     REQUIRE(std::same_as<std::ptrdiff_t, patricia_trie<int>::difference_type>);

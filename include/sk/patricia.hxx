@@ -37,11 +37,9 @@
 #include <climits>
 #include <cstddef>
 #include <cstring>
-#include <iostream>
 #include <memory>
 #include <optional>
 #include <ranges>
-#include <set>
 #include <span>
 
 #if defined(SK_PATRICIA_TRACE) && !defined(NDEBUG)
@@ -104,8 +102,8 @@ namespace sk {
 
         patricia_key(patricia_key const &other) noexcept = default;
 
-        // NOLINTNEXTLINE non-explicit constructor
         template <std::ranges::contiguous_range Range>
+        // NOLINTNEXTLINE non-explicit constructor; forwarding constructor
         patricia_key(Range &&r, bit_t bits_ = 0) noexcept
             : patricia_key(
                   as_bytes(std::span<
